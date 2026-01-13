@@ -2,6 +2,7 @@
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using TMPro;
+using UnityEngine.UI;
 
 namespace Cutscenes
 {
@@ -14,8 +15,14 @@ namespace Cutscenes
 
         internal static ConfigEntry<KeyboardShortcut> key;
         internal static ConfigEntry<float> glitchIntensity;
+        internal static ConfigEntry<bool> afterRestart;
 
         internal static TextMeshProUGUI SkipLabel, RewindIcon;
+        internal static Toggle toggle;
+        internal static TMP_InputField checkpointName;
+
+
+        internal static bool restarted = false;
 
         private void Awake()
         {
@@ -24,8 +31,10 @@ namespace Cutscenes
 
             key = Config.Bind("General", "Key", new KeyboardShortcut(UnityEngine.KeyCode.K), "The key that skips the cutscene when pressed.");
             glitchIntensity = Config.Bind("General", "Glitch", 0.3f, "The intensity of glitch effect on rewinding [0.00-1.00].");
+            afterRestart = Config.Bind("General", "AfterRestart", false, "Rewind the cutscenes automatically after first restart.");
 
             HarmonyLib.Harmony.CreateAndPatchAll(typeof(Patcher));
+            HarmonyLib.Harmony.CreateAndPatchAll(typeof(EditorPatcher));
 
             Logger.LogInfo("Plugin is loaded!");
         }

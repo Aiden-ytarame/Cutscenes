@@ -4,11 +4,19 @@ using TMPro;
 using System.Text;
 using System.Runtime.CompilerServices;
 using UnityEngine.EventSystems;
+using Systems.SceneManagement;
 
 namespace Cutscenes
 {
     public class Patcher
     {
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.PlayGame))]
+        static void OnLevelLaunch()
+        {
+            Plugin.restarted = false;
+        }
+
         //ON CREATING LEVEL SCENE ================================================================================
         [HarmonyPostfix]
         [HarmonyPatch(typeof(GameManager), nameof(GameManager.Start))]
@@ -60,27 +68,27 @@ namespace Cutscenes
             speed = 2f,
             width = 0.99f
         };
-        static bool IsEditor => Systems.SceneManagement.SceneLoader.Inst.manager.ActiveSceneGroup.GroupName == "Editor";
         [MethodImpl(MethodImplOptions.AggressiveInlining)] static void TweenText() => et = 0.001f;
         [MethodImpl(MethodImplOptions.AggressiveInlining)] static void BreakTweenText() => et = dur / 10 * 9;
+        static bool IsEditor => SceneLoader.Inst.manager.ActiveSceneGroup.GroupName == "Editor";
 
 
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(GameManager), nameof(GameManager.UpdateTimeline))]
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.GameLoop))]
         static void Update()
         {
             //return if level is not loaded or it is in editing mode
-            if (GameManager.inst.CurGameState == GameManager.GameState.Loading
-                || DataManager.inst.gameData.beatmapData.checkpoints == null) return;
+            if (GameManager.inst.CurGameState == GameManager.GameState.Loading || DataManager.inst.gameData.beatmapData.checkpoints == null) return;
 
 
             //get current checkpoint
-            var idx = GameManager.inst.GetClosestCheckpointIndex(DataManager.inst.gameData.beatmapData.checkpoints, GameManager.Inst.CurrentSongTimeSmoothed);
+            int idx = GameManager.inst.GetClosestCheckpointIndex(DataManager.inst.gameData.beatmapData.checkpoints, GameManager.Inst.CurrentSongTimeSmoothed);
             //get next checkpoint
-            int idx2 = -1;
+            int idx2;
             if (!IsEditor) idx2 = idx + 1;
             else
             {
+                idx2 = -1;
                 float min = GameManager.Inst.CurrentSongLength;
                 for (int i = 0; i < DataManager.inst.gameData.beatmapData.checkpoints.Count; i++)
                     if (GameManager.Inst.CurrentSongTimeSmoothed < DataManager.inst.gameData.beatmapData.checkpoints[i].time && DataManager.inst.gameData.beatmapData.checkpoints[i].time < min)
@@ -92,7 +100,7 @@ namespace Cutscenes
             bool outOfRange = !IsEditor ? idx == DataManager.inst.gameData.beatmapData.checkpoints.Count - 1 : idx2 == -1;
 
             //if the current checkpoint is CUTSCENE type
-            if (DataManager.inst.gameData.beatmapData.checkpoints[idx].name == "!CUTSCENE")
+            if (DataManager.inst.gameData.beatmapData.checkpoints[idx].name.Contains("!CUTSCENE"))
             {
                 ///Do once
                 if (!isCutsceneFlag)
@@ -126,9 +134,11 @@ namespace Cutscenes
                 Plugin.SkipLabel.enabled = glitch < 1;
 
                 //Rewind to the next checkpoint
-                if ((!IsEditor ? GameManager.inst.CurGameState == GameManager.GameState.Playing : AudioManager.Inst.IsPlaying) && VyInput.GetKeyDown() && !bypassedFlag)
+                //if level is not paused or AfterRestart is activated in the arcade
+                if ((GameManager.inst.CurGameState == GameManager.GameState.Playing || AudioManager.Inst.IsPlaying) &&
+                    (VyInput.GetKeyDown() || (!IsEditor && Plugin.restarted && Plugin.afterRestart.Value)) &&
+                    !bypassedFlag)
                 {
-                    //start rewind
                     hitSkipTime = GameManager.inst.CurrentSongTimeSmoothed;
                     LSEffectsManager.Inst.activeGlitchProfile = profile;
                     //Break label tween
@@ -163,6 +173,13 @@ namespace Cutscenes
                 }
             }
         }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.CallRestartLevel))]
+        static void OnRestart()
+        {
+            Plugin.restarted = true;
+        }
     }
 
     public class VyInput
@@ -183,6 +200,11 @@ namespace Cutscenes
 
             }
         }
-        public static bool GetKeyDown() => !IsTyping && Plugin.key.Value.IsDown();
+        public static bool GetKeyDown()
+        {
+            if (Plugin.key.Value.IsDown())
+                return true && !IsTyping;
+            return false;
+        }
     }
 }
