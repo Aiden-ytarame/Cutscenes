@@ -7,6 +7,7 @@ using UnityEngine.UI;
 namespace Cutscenes
 {
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
+    [BepInDependency("me.ytarame.Multiplayer", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInProcess("Project Arrhythmia.exe")]
     public class Plugin : BaseUnityPlugin
     {
