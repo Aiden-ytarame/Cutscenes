@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using System;
+using HarmonyLib;
 using UnityEngine;
 using TMPro;
 using System.Text;
@@ -6,6 +7,7 @@ using System.Runtime.CompilerServices;
 using AttributeNetworkWrapperV2;
 using UnityEngine.EventSystems;
 using Systems.SceneManagement;
+using Random = UnityEngine.Random;
 
 namespace Cutscenes
 {
@@ -165,7 +167,8 @@ namespace Cutscenes
                 {
                     if (!isRewinding)
                     {
-                        CallRpc_Multi_SkipCheckpoint(hitSkipTime, destTime);
+                        if (isMultiplayer && Multiplayer.IsHosting())
+                            CallRpc_Multi_SkipCheckpoint(hitSkipTime, destTime, pitchState);
                         isRewinding = true;
                     }
                     float prg = -Mathf.Pow((GameManager.inst.CurrentSongTimeSmoothed - hitSkipTime) / (destTime - hitSkipTime) * 2 - 1, 6) + 1;
@@ -205,17 +208,37 @@ namespace Cutscenes
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
         [MultiRpc]
-        private static void Multi_SkipCheckpoint(float skipStart, float skipEnd)
+        private static void Multi_SkipCheckpoint(float skipStart, float skipEnd, float pitch)
         {
             hitSkipTime = skipStart;
             destTime = skipEnd;
+            pitchState = pitch;
+            isCutsceneFlag = true;
+            bypassedFlag = true;
         }
     }
 
     public class VyInput
     {
-        public static bool IsTyping => EventSystem.current?.currentSelectedGameObject?.TryGetComponent(out TMP_InputField _) == true;
-        
+        public static bool IsTyping
+        {
+            get
+            {
+                try
+                {
+
+                    if (EventSystem.current?.currentSelectedGameObject)
+                        return EventSystem.current.currentSelectedGameObject.TryGetComponent(out TMP_InputField _);
+                }
+                catch
+                {
+                    // ignored
+                }
+
+                return false;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)] 
         public static bool GetKeyDown() => Plugin.key.Value.IsDown() && !IsTyping;
         

@@ -30,6 +30,10 @@ namespace Cutscenes
             // Plugin startup logic
             Logger = base.Logger;
 
+            bool en = Multiplayer.Enabled;
+            if(en)
+                Logger.LogInfo("Multiplayer is enabled");
+            
             key = Config.Bind("General", "Key", new KeyboardShortcut(UnityEngine.KeyCode.K), "The key that skips the cutscene when pressed.");
             glitchIntensity = Config.Bind("General", "Glitch", 0.3f, "The intensity of glitch effect on rewinding [0.00-1.00].");
             afterRestart = Config.Bind("General", "AfterRestart", false, "Rewind the cutscenes automatically after first restart.");
