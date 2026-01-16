@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using AttributeNetworkWrapperV2;
@@ -16,8 +17,15 @@ public static class Multiplayer
         get {
             if (_enabled == null)
             {
-                _enabled = BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("me.ytarame.Multiplayer");
-
+                if (BepInEx.Bootstrap.Chainloader.PluginInfos.TryGetValue("me.ytarame.Multiplayer", out var mp))
+                {
+                    _enabled = mp.Metadata.Version >= new Version(1, 2, 0);
+                }
+                else
+                {
+                    _enabled = false;
+                }
+                
                 if (_enabled.Value)
                 {
                     Init();
